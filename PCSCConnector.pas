@@ -151,8 +151,8 @@ type
     function    Init: boolean;
     function    Open: boolean;
     procedure   Close;
-    function    Connect: boolean;
-    procedure   Disconnect;
+    function    ConnectCard: boolean;
+    procedure   DisconnectCard;
     function    GetResponseFromCard(const apdu: AnsiString): AnsiString; overload;
     function    GetResponseFromCard(const command: AnsiString; var data: AnsiString; var sw: word): boolean; overload;
 
@@ -172,7 +172,7 @@ type
     function    GenerateAC(RefControl: byte; data: AnsiString; var sw: Word): AnsiString;
 
   published
-    property UseReaderNum: integer    read FUseReaderNum    write SetReaderNum  default -1;
+    property ActiveReaderIndex: integer    read FUseReaderNum    write SetReaderNum  default -1;
     property APDULogging: boolean     read FAPDULogging     write FAPDULogging  default false;
 
     property OnCardInserted:     TNotifyEvent    read FOnCardInserted     write FOnCardInserted;
@@ -186,7 +186,7 @@ type
 
     property ReaderList:       TStringList read FReaderList;
     property NumReaders:       integer     read FNumReaders;
-    property Connected:        boolean     read FConnected;
+    property CardConnected:    boolean     read FConnected;
     property Opened:           boolean     read IsReaderOpen;
     property ReaderState:      cardinal    read GetReaderState;
     property AttrProtocol:     integer     read FAttrProtocol;
@@ -476,19 +476,19 @@ begin
   ReaderOpen := false;
   sleep(100);
   SCardCancel(FContext);
-  if FConnected then Disconnect;
+  if FConnected then DisconnectCard;
 end;
 
-function TPCSCConnector.Connect: boolean;
+function TPCSCConnector.ConnectCard: boolean;
 begin
-  if FConnected then Disconnect;
+  if FConnected then DisconnectCArd;
   if FUseReaderNum > NOREADERSELECTED then
     if ConnectSelectedReader then FConnected := true
                              else FConnected := false;
   Result := FConnected;
 end;
 
-procedure TPCSCConnector.Disconnect;
+procedure TPCSCConnector.DisconnectCard;
 begin
   if FConnected then
   begin
@@ -516,7 +516,7 @@ end;
 
 procedure TPCSCConnector.CloseAndDisconnect;
 begin
-  if FConnected then Disconnect;
+  if FConnected then DisconnectCard;
   if ReaderOpen then Close;
 end;
 
@@ -545,39 +545,58 @@ begin
     end;
 end;
 
-procedure TPCSCConnector.ProcessReaderState(const OldState,NewState: cardinal);
+procedure TPCSCConnector.ProcessReaderState(const OldState, NewState: cardinal);
 var
   CardInOld, CardInNew     : boolean;
   ReaderEmOld, ReaderEmNew : boolean;
   CardMuteOld, CardMuteNew : boolean;
   CardIgnore               : boolean;
-
 begin
-CardInOld   := (OldState and SCARD_STATE_PRESENT) > 0;
-CardInNew   := (NewState and SCARD_STATE_PRESENT) > 0;
-ReaderEmOld := (OldState and SCARD_STATE_EMPTY) > 0;
-ReaderEmNew := (NewState and SCARD_STATE_EMPTY) > 0;
-CardMuteOld := (OldState and SCARD_STATE_MUTE) > 0;
-CardMuteNew := (NewState and SCARD_STATE_MUTE) > 0;
-CardIgnore  := (NewState and SCARD_STATE_IGNORE) > 0;
+  CardInOld   := (OldState and SCARD_STATE_PRESENT) > 0;
+  CardInNew   := (NewState and SCARD_STATE_PRESENT) > 0;
+  ReaderEmOld := (OldState and SCARD_STATE_EMPTY) > 0;
+  ReaderEmNew := (NewState and SCARD_STATE_EMPTY) > 0;
+  CardMuteOld := (OldState and SCARD_STATE_MUTE) > 0;
+  CardMuteNew := (NewState and SCARD_STATE_MUTE) > 0;
+  CardIgnore  := (NewState and SCARD_STATE_IGNORE) > 0;
 
-if CardMuteNew     and
-   not CardMuteold then if Assigned(FOnCardInvalid) then FOnCardInvalid(Self);
+  LastReaderState := NewState;
 
-if CardInNew       and
-   not CardInOld   and
-   not CardMuteNew and
-   not CardIgnore  then CardInsertedAction;
+  if (CardMuteNew and not CardMuteold) and Assigned(FOnCardInvalid) then
+    FOnCardInvalid(Self);
 
-if CardInOld     and
-   not CardInNew then CardRemovedAction;
+  if CardInNew and (not CardInOld) and (not CardMuteNew) and (not CardIgnore) then
+    CardInsertedAction;
 
-if ReaderEmNew     and
-   not ReaderEmOld then begin
-                        if Assigned(FOnReaderWaiting) then FOnReaderWaiting(Self);
-                        end;
+  if CardInOld and not CardInNew then
+    CardRemovedAction;
 
-LastReaderState := NewState;
+  if ReaderEmNew and not ReaderEmOld and Assigned(FOnReaderWaiting) then
+  begin
+    FOnReaderWaiting(Self);
+  end;
+end;
+
+procedure TPCSCConnector.CardInsertedAction;
+begin
+  if CardConnected then
+    CardActiveAction;
+
+  if Assigned(FOnCardInserted) then
+    FOnCardInserted(Self);
+end;
+
+procedure TPCSCConnector.CardActiveAction;
+begin
+  GetReaderAttributes;
+
+  if FAttrProtocol <> SCARD_PROTOCOL_UNK then
+  begin
+    GetCardAttributes;
+
+    if Assigned(FOnCardActive) then
+      FOnCardActive(Self);
+  end;
 end;
 
 function TPCSCConnector.ReadSFIRecord(sfi, rnum: byte; var sw: Word): AnsiString;
@@ -600,13 +619,13 @@ begin
   end;
 end;
 
-procedure TPCSCConnector.CardInsertedAction;
+{procedure TPCSCConnector.CardInsertedAction;
 begin
   if Assigned(FOnCardInserted) then FOnCardInserted(Self);
   if FConnected then CardActiveAction;
-end;
+end;}
 
-procedure TPCSCConnector.CardActiveAction;
+(*procedure TPCSCConnector.CardActiveAction;
 //var
 // RetVar: cardinal;
 begin
@@ -624,13 +643,13 @@ begin
     if Assigned(FOnCardActive) then FOnCardActive(Self);
     end;
 end;
-
+*)
 procedure TPCSCConnector.CardRemovedAction;
 begin
   ClearReaderAttributes;
   ClearCardAttributes;
   if Assigned(FOnCardRemoved) then FOnCardRemoved(Self);
-  Disconnect;
+  DisconnectCard;
 end;
 
 // EMV 4.3 book 1 §11.3 page 127
