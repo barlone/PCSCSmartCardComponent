@@ -6,12 +6,6 @@ The component has the following properties, methods and events:
 
 ### Methods:
 
-**constructor Create(AOwner: TComponent); override;**
-**destructor  Destroy; override;**
-Obvious what these do
-
-&nbsp;
-
 **function Init: boolean;**
 Init tries to establish a connection with the SmartCard API and to read the
 list of installed readers. If the connection is successfull, and a minimum
@@ -29,13 +23,13 @@ Close cancels all open requests and finishes watching the reader
 
 &nbsp;
 
-**function Connect: boolean;**
+**function ConnectCard: boolean;**
 Connect tries to connect to the card in the selected reader.
 If successful, TRUE is returned
 
 &nbsp;
 
-**procedure Disconnect;**
+**procedure DisconnectCard;**
 Disconnect disconnects from the card in the selected reader
 
 &nbsp;
@@ -51,9 +45,10 @@ SW1, SW2 and DATA as response and TRUE as result if the request was successful
 ### Properties:
 
 **property ReaderList:   TStringList;**
-**property UseReaderNum: integer;**
 ReaderList holds the list of available readers. It is filled by calling Init.
-UseReaderNum points to the Reader to use in ReaderList or is set to -1
+
+**property ActiveReaderIndex: integer;**
+Points to the Reader to use in ReaderList or is set to -1
 if no reader is selected
 
 &nbsp;
