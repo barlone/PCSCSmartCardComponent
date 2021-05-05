@@ -7,36 +7,26 @@ The component has the following properties, methods and events:
 ### Methods:
 
 **function Init: boolean;**
-Init tries to establish a connection with the SmartCard API and to read the
+// Init tries to establish a connection with the SmartCard API and to read the
 list of installed readers. If the connection is successfull, and a minimum
 of one reader is found, TRUE is returned
 
-&nbsp;
-
 **function Open: boolean;**
-Open starts watching the selected reader for status changes
-
-&nbsp;
+// Open starts watching the selected reader for status changes
 
 **procedure   Close;**
-Close cancels all open requests and finishes watching the reader
-
-&nbsp;
+// Close cancels all open requests and finishes watching the reader
 
 **function ConnectCard: boolean;**
-Connect tries to connect to the card in the selected reader.
+// Connect tries to connect to the card in the selected reader.
 If successful, TRUE is returned
 
-&nbsp;
-
 **procedure DisconnectCard;**
-Disconnect disconnects from the card in the selected reader
-
-&nbsp;
+// Disconnect disconnects from the card in the selected reader
 
 **function GetResponseFromCard(const apdu: string): string;**
 **function GetResponseFromCard(const command: string; var data: string; var sw1, sw2: byte): boolean;**
-Let you send APDUs to the card. Either provide a complete APDU and get the
+// Let you send APDUs to the card. Either provide a complete APDU and get the
 resulting APDU as a string, or provide the command (CLA,INS,P1,P2,P3) and DATA and get
 SW1, SW2 and DATA as response and TRUE as result if the request was successful
 
